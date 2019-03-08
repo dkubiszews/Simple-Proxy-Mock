@@ -19,10 +19,12 @@ package main
 
 import (
   "io"
+  "io/ioutil"
   "encoding/json"
   "net/http"
   "log"
   "os"
+  "strings"
 )
 
 type MockResponse struct {
@@ -95,8 +97,16 @@ func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, 
     handleClearAllMock(config, w, r)
     return
   }
+
+  rBody, err := ioutil.ReadAll(r.Body)
+  if err != nil {
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+    return
+  }
+  rNewBodyReader := strings.NewReader(string(rBody[:]))
+
   client := &http.Client{}
-  proxyRequest, err := http.NewRequest(r.Method, destinationServer + r.RequestURI, r.Body)
+  proxyRequest, err := http.NewRequest(r.Method, destinationServer + r.RequestURI, rNewBodyReader)
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
@@ -105,7 +115,6 @@ func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, 
     proxyRequest.Header.Set(name, value[0])
   }
   proxyResponse, err := client.Do(proxyRequest)
-  r.Body.Close()
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
