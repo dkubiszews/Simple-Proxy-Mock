@@ -84,22 +84,7 @@ func handleClearAllMock(config *RuntimeConfiguration, w http.ResponseWriter, r *
   w.WriteHeader(http.StatusOK)
 }
 
-func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, w http.ResponseWriter, r *http.Request) {
-  log.Print("Handle request")
-  if value, status := config.mockMap[r.RequestURI]; status {
-    handleMock(value, w, r)
-    return
-  } else if r.RequestURI == "/mockSettings/set" {
-    handleSetMock(config, w, r)
-    return
-  } else if r.RequestURI == "/mockSettings/clear" {
-    handleClearMock(config, w, r)
-    return
-  } else if r.RequestURI == "/mockSettings/clearAll"{
-    handleClearAllMock(config, w, r)
-    return
-  }
-
+func handleProxyRequest(destinationServer string, config *RuntimeConfiguration, w http.ResponseWriter, r *http.Request) {
   rBody, err := ioutil.ReadAll(r.Body)
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -128,6 +113,24 @@ func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, 
   w.WriteHeader(proxyResponse.StatusCode)
   io.Copy(w, proxyResponse.Body)
   proxyResponse.Body.Close()
+}
+
+func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, w http.ResponseWriter, r *http.Request) {
+  log.Print("Handle request")
+  if value, status := config.mockMap[r.RequestURI]; status {
+    handleMock(value, w, r)
+    return
+  } else if r.RequestURI == "/mockSettings/set" {
+    handleSetMock(config, w, r)
+    return
+  } else if r.RequestURI == "/mockSettings/clear" {
+    handleClearMock(config, w, r)
+    return
+  } else if r.RequestURI == "/mockSettings/clearAll"{
+    handleClearAllMock(config, w, r)
+    return
+  }
+  handleProxyRequest(destinationServer, config, w, r)
 }
 
 func provideProxyHandler(destinationServer string) func(http.ResponseWriter, *http.Request) {
