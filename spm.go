@@ -52,7 +52,6 @@ func handleSetMock(config *RuntimeConfiguration, w http.ResponseWriter, r *http.
   jsonDecoder := json.NewDecoder(r.Body)
   var mockResponse MockResponse
   err := jsonDecoder.Decode(&mockResponse)
-  // TODO: response error code instead of panic
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
@@ -69,7 +68,6 @@ func handleClearMock(config *RuntimeConfiguration, w http.ResponseWriter, r *htt
   }
   var clearMockData ClearMockSchema
   err := jsonDecoder.Decode(&clearMockData)
-  // TODO: response error code instead of panic
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
