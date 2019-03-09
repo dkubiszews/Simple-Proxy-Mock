@@ -115,8 +115,23 @@ func handleProxyRequest(destinationServer string, config *RuntimeConfiguration, 
   proxyResponse.Body.Close()
 }
 
+func logRequest(r *http.Request) {
+  var sb strings.Builder
+  sb.WriteString("\n>>>> REQUEST: " + r.RequestURI + "\n\nHEADER:\n")
+  for keyHeader, valueHeader := range r.Header {
+    sb.WriteString(keyHeader + ": "  + valueHeader[0] + "\n")
+  }
+
+  rBody, _ := ioutil.ReadAll(r.Body)
+  sb.WriteString("\nBODY:\n" + string(rBody[:]) + "\n")
+  r.Body = ioutil.NopCloser(strings.NewReader(string(rBody[:])))
+
+  log.Print(sb.String())
+}
+
 func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, w http.ResponseWriter, r *http.Request) {
   log.Print("Handle request")
+  logRequest(r)
   if value, status := config.mockMap[r.RequestURI]; status {
     handleMock(value, w, r)
   } else if r.RequestURI == "/mockSettings/set" {
