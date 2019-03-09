@@ -18,6 +18,7 @@
 package main
 
 import (
+  "compress/gzip"
   "io"
   "io/ioutil"
   "encoding/json"
@@ -123,7 +124,17 @@ func logRequest(r *http.Request) {
   }
 
   rBody, _ := ioutil.ReadAll(r.Body)
-  sb.WriteString("\nBODY:\n" + string(rBody[:]) + "\n")
+  sb.WriteString("\nBODY:\n")
+  if r.Header.Get("Content-Encoding") == "gzip" {
+    // TODO: should react on errors here?
+    rNewReader := strings.NewReader(string(rBody[:]))
+    gzipReader, _ := gzip.NewReader(rNewReader)
+    rUncompressedBody, _ := ioutil.ReadAll(gzipReader)
+    sb.WriteString("(uncompressed body)\n" + string(rUncompressedBody[:]))
+  } else {
+    sb.WriteString(string(rBody[:]))
+  }
+  sb.WriteString("\n")
   r.Body = ioutil.NopCloser(strings.NewReader(string(rBody[:])))
 
   log.Print(sb.String())
