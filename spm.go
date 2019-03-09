@@ -119,18 +119,15 @@ func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, 
   log.Print("Handle request")
   if value, status := config.mockMap[r.RequestURI]; status {
     handleMock(value, w, r)
-    return
   } else if r.RequestURI == "/mockSettings/set" {
     handleSetMock(config, w, r)
-    return
   } else if r.RequestURI == "/mockSettings/clear" {
     handleClearMock(config, w, r)
-    return
   } else if r.RequestURI == "/mockSettings/clearAll"{
     handleClearAllMock(config, w, r)
-    return
+  } else {
+    handleProxyRequest(destinationServer, config, w, r)
   }
-  handleProxyRequest(destinationServer, config, w, r)
 }
 
 func provideProxyHandler(destinationServer string) func(http.ResponseWriter, *http.Request) {
