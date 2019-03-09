@@ -29,6 +29,7 @@ import (
 
 type MockResponse struct {
   Endpoint string
+  Header map[string]string
   StatusCode int
   Body string
 }
@@ -39,6 +40,9 @@ type RuntimeConfiguration struct {
 
 func handleMock(mockResponse MockResponse, w http.ResponseWriter, r *http.Request) {
   log.Print("Handle mocked request")
+  for keyHeader, valueHeader := range mockResponse.Header {
+    w.Header().Add(keyHeader, valueHeader)
+  }
   w.WriteHeader(mockResponse.StatusCode)
   w.Write([]byte(mockResponse.Body))
 }
