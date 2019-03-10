@@ -22,11 +22,42 @@ import (
   "io"
   "io/ioutil"
   "encoding/json"
+  "fmt"
   "net/http"
   "log"
   "os"
   "strings"
 )
+
+// TODO: move ResponseWriterAccessor to separate package
+type ResponseWriterAccessor struct {
+  RespWriter http.ResponseWriter
+  RequestURI string
+	Body string
+	StatusCode int
+}
+
+func (this *ResponseWriterAccessor) Header() http.Header {
+	return this.RespWriter.Header()
+}
+
+func (this *ResponseWriterAccessor) Write(data []byte) (int, error) {
+	this.Body = string(data)
+	return this.RespWriter.Write(data)
+}
+
+func (this *ResponseWriterAccessor) WriteHeader(statusCode int) {
+	this.StatusCode = statusCode
+	this.RespWriter.WriteHeader(statusCode)
+}
+
+func NewResponseWriterAccessor(requestURI string, respWriter http.ResponseWriter) (*ResponseWriterAccessor) {
+  object := new(ResponseWriterAccessor)
+  object.RequestURI = requestURI
+	object.RespWriter = respWriter
+	object.StatusCode = http.StatusOK
+	return object
+}
 
 type MockResponse struct {
   Endpoint string
@@ -140,20 +171,48 @@ func logRequest(r *http.Request) {
   log.Print(sb.String())
 }
 
+// TODO: consider make common with logRequest
+func logResponse(r *ResponseWriterAccessor) {
+  var sb strings.Builder
+  sb.WriteString("\n<<<< RESPONSE: " + r.RequestURI + "\n\nHEADER:\n")
+  for keyHeader, valueHeader := range r.Header() {
+    sb.WriteString(keyHeader + ": "  + valueHeader[0] + "\n")
+  }
+
+  sb.WriteString("\nBODY:\n")
+  if r.Header().Get("Content-Encoding") == "gzip" {
+    // TODO: should react on errors here?
+    rNewReader := strings.NewReader(r.Body)
+    gzipReader, _ := gzip.NewReader(rNewReader)
+    rUncompressedBody, _ := ioutil.ReadAll(gzipReader)
+    sb.WriteString("(uncompressed body)\n" + string(rUncompressedBody[:]))
+  } else {
+    sb.WriteString(r.Body)
+  }
+
+  sb.WriteString(fmt.Sprintf("STATUS_CODE: %d \n", r.StatusCode))
+  sb.WriteString("\n")
+  log.Print(sb.String())
+}
+
 func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, w http.ResponseWriter, r *http.Request) {
   log.Print("Handle request")
   logRequest(r)
+
+  wAccessor := NewResponseWriterAccessor(r.RequestURI, w)
   if value, status := config.mockMap[r.RequestURI]; status {
-    handleMock(value, w, r)
+    handleMock(value, wAccessor, r)
   } else if r.RequestURI == "/mockSettings/set" {
-    handleSetMock(config, w, r)
+    handleSetMock(config, wAccessor, r)
   } else if r.RequestURI == "/mockSettings/clear" {
-    handleClearMock(config, w, r)
+    handleClearMock(config, wAccessor, r)
   } else if r.RequestURI == "/mockSettings/clearAll"{
-    handleClearAllMock(config, w, r)
+    handleClearAllMock(config, wAccessor, r)
   } else {
-    handleProxyRequest(destinationServer, config, w, r)
+    handleProxyRequest(destinationServer, config, wAccessor, r)
   }
+
+  logResponse(wAccessor)
 }
 
 func provideProxyHandler(destinationServer string) func(http.ResponseWriter, *http.Request) {
