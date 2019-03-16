@@ -23,20 +23,13 @@ import (
   "log"
 )
 
-type mockResponse struct {
-  Endpoint string
-  Header map[string]string
-  StatusCode int
-  Body string
-}
-
 type Mock struct {
   mockMap map[string]mockResponse
 }
 
 func (this *Mock) HandleMockRequest(uriPath string, responseWriter http.ResponseWriter, request *http.Request) bool {
   if value, status := this.mockMap[uriPath]; status {
-    handleMock(value, responseWriter, request)
+    value.handleMock(responseWriter, request)
   } else if uriPath == "/mockSettings/set" {
     handleSetMock(this, responseWriter, request)
   } else if uriPath == "/mockSettings/clear" {
@@ -53,15 +46,6 @@ func NewMock() (*Mock) {
 	mockResult := new(Mock)
 	mockResult.mockMap = make(map[string]mockResponse)
 	return mockResult
-}
-
-func handleMock(mockResponse mockResponse, w http.ResponseWriter, r *http.Request) {
-  log.Print("Handle mocked request")
-  for keyHeader, valueHeader := range mockResponse.Header {
-    w.Header().Add(keyHeader, valueHeader)
-  }
-  w.WriteHeader(mockResponse.StatusCode)
-  w.Write([]byte(mockResponse.Body))
 }
 
 func handleSetMock(config *Mock, w http.ResponseWriter, r *http.Request) {
@@ -99,4 +83,20 @@ func handleClearAllMock(config *Mock, w http.ResponseWriter, r *http.Request) {
   config.mockMap = make(map[string]mockResponse)
   log.Print(config)
   w.WriteHeader(http.StatusOK)
+}
+
+type mockResponse struct {
+  Endpoint string
+  Header map[string]string
+  StatusCode int
+  Body string
+}
+
+func (this *mockResponse) handleMock(w http.ResponseWriter, r *http.Request) {
+  log.Print("Handle mocked request")
+  for keyHeader, valueHeader := range this.Header {
+    w.Header().Add(keyHeader, valueHeader)
+  }
+  w.WriteHeader(this.StatusCode)
+  w.Write([]byte(this.Body))
 }
