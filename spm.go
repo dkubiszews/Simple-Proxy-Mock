@@ -27,37 +27,8 @@ import (
   "log"
   "os"
   "strings"
+  "./internal/httpDecorator"
 )
-
-// TODO: move ResponseWriterAccessor to separate package
-type ResponseWriterAccessor struct {
-  RespWriter http.ResponseWriter
-  RequestURI string
-	Body string
-	StatusCode int
-}
-
-func (this *ResponseWriterAccessor) Header() http.Header {
-	return this.RespWriter.Header()
-}
-
-func (this *ResponseWriterAccessor) Write(data []byte) (int, error) {
-	this.Body = string(data)
-	return this.RespWriter.Write(data)
-}
-
-func (this *ResponseWriterAccessor) WriteHeader(statusCode int) {
-	this.StatusCode = statusCode
-	this.RespWriter.WriteHeader(statusCode)
-}
-
-func NewResponseWriterAccessor(requestURI string, respWriter http.ResponseWriter) (*ResponseWriterAccessor) {
-  object := new(ResponseWriterAccessor)
-  object.RequestURI = requestURI
-	object.RespWriter = respWriter
-	object.StatusCode = http.StatusOK
-	return object
-}
 
 type MockResponse struct {
   Endpoint string
@@ -172,7 +143,7 @@ func logRequest(r *http.Request) {
 }
 
 // TODO: consider make common with logRequest
-func logResponse(r *ResponseWriterAccessor) {
+func logResponse(r *httpDecorator.ResponseWriterAccessor) {
   var sb strings.Builder
   sb.WriteString("\n<<<< RESPONSE: " + r.RequestURI + "\n\nHEADER:\n")
   for keyHeader, valueHeader := range r.Header() {
@@ -199,7 +170,7 @@ func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, 
   log.Print("Handle request")
   logRequest(r)
 
-  wAccessor := NewResponseWriterAccessor(r.RequestURI, w)
+  wAccessor := httpDecorator.NewResponseWriterAccessor(r.RequestURI, w)
   if value, status := config.mockMap[r.RequestURI]; status {
     handleMock(value, wAccessor, r)
   } else if r.RequestURI == "/mockSettings/set" {
