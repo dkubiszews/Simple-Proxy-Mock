@@ -20,86 +20,14 @@ package main
 import (
   "io"
   "io/ioutil"
-  "encoding/json"
   "net/http"
   "log"
   "os"
   "strings"
   "./internal/httpDecorator"
   "./internal/httpLogger"
+  "./internal/mock"
 )
-
-type MockResponse struct {
-  Endpoint string
-  Header map[string]string
-  StatusCode int
-  Body string
-}
-
-type Mock struct {
-  mockMap map[string]MockResponse
-}
-
-func (this *Mock) handleMockRequest(uriPath string, responseWriter http.ResponseWriter, request *http.Request) bool {
-  if value, status := this.mockMap[uriPath]; status {
-    handleMock(value, responseWriter, request)
-  } else if uriPath == "/mockSettings/set" {
-    handleSetMock(this, responseWriter, request)
-  } else if uriPath == "/mockSettings/clear" {
-    handleClearMock(this, responseWriter, request)
-  } else if uriPath == "/mockSettings/clearAll"{
-    handleClearAllMock(this, responseWriter, request)
-  } else {
-    return false;
-  }
-  return true;
-}
-
-func handleMock(mockResponse MockResponse, w http.ResponseWriter, r *http.Request) {
-  log.Print("Handle mocked request")
-  for keyHeader, valueHeader := range mockResponse.Header {
-    w.Header().Add(keyHeader, valueHeader)
-  }
-  w.WriteHeader(mockResponse.StatusCode)
-  w.Write([]byte(mockResponse.Body))
-}
-
-func handleSetMock(config *Mock, w http.ResponseWriter, r *http.Request) {
-  log.Print("Handle set mock")
-  jsonDecoder := json.NewDecoder(r.Body)
-  var mockResponse MockResponse
-  err := jsonDecoder.Decode(&mockResponse)
-  if err != nil {
-    http.Error(w, err.Error(), http.StatusInternalServerError)
-    return
-  }
-  config.mockMap[mockResponse.Endpoint] = mockResponse
-  w.WriteHeader(http.StatusOK)
-}
-
-func handleClearMock(config *Mock, w http.ResponseWriter, r *http.Request) {
-  log.Print("Handle clear mock")
-  jsonDecoder := json.NewDecoder(r.Body)
-  type ClearMockSchema struct {
-    Endpoint string
-  }
-  var clearMockData ClearMockSchema
-  err := jsonDecoder.Decode(&clearMockData)
-  if err != nil {
-    http.Error(w, err.Error(), http.StatusInternalServerError)
-    return
-  }
-  delete(config.mockMap, clearMockData.Endpoint)
-  w.WriteHeader(http.StatusOK)
-}
-
-func handleClearAllMock(config *Mock, w http.ResponseWriter, r *http.Request) {
-  log.Print("Handle clearAll mock")
-  // TODO: add some body to this request 
-  config.mockMap = make(map[string]MockResponse)
-  log.Print(config)
-  w.WriteHeader(http.StatusOK)
-}
 
 func handleProxyRequest(destinationServer string, w http.ResponseWriter, r *http.Request) {
   rBody, err := ioutil.ReadAll(r.Body)
@@ -132,12 +60,12 @@ func handleProxyRequest(destinationServer string, w http.ResponseWriter, r *http
   proxyResponse.Body.Close()
 }
 
-func proxyHandlerIntern(destinationServer string, config *Mock, w http.ResponseWriter, r *http.Request) {
+func proxyHandlerIntern(destinationServer string, config *mock.Mock, w http.ResponseWriter, r *http.Request) {
   log.Print("Handle request")
   httpLogger.LogRequest(r)
 
   wAccessor := httpDecorator.NewResponseWriterAccessor(r.RequestURI, w)
-  if ! config.handleMockRequest(r.RequestURI, wAccessor, r) {
+  if ! config.HandleMockRequest(r.RequestURI, wAccessor, r) {
     handleProxyRequest(destinationServer, wAccessor, r)
   }
 
@@ -146,10 +74,9 @@ func proxyHandlerIntern(destinationServer string, config *Mock, w http.ResponseW
 
 func provideProxyHandler(destinationServer string) func(http.ResponseWriter, *http.Request) {
   // TODO: add sync for config for mutiple threads
-  config := Mock{}
-  config.mockMap = make(map[string]MockResponse)
+  config := mock.NewMock()
   return func(w http.ResponseWriter, r *http.Request) {
-    proxyHandlerIntern(destinationServer, &config, w, r)
+    proxyHandlerIntern(destinationServer, config, w, r)
   }
 }
 
