@@ -86,7 +86,7 @@ func handleClearAllMock(config *RuntimeConfiguration, w http.ResponseWriter, r *
   w.WriteHeader(http.StatusOK)
 }
 
-func handleProxyRequest(destinationServer string, config *RuntimeConfiguration, w http.ResponseWriter, r *http.Request) {
+func handleProxyRequest(destinationServer string, w http.ResponseWriter, r *http.Request) {
   rBody, err := ioutil.ReadAll(r.Body)
   if err != nil {
     http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -131,7 +131,7 @@ func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, 
   } else if r.RequestURI == "/mockSettings/clearAll"{
     handleClearAllMock(config, wAccessor, r)
   } else {
-    handleProxyRequest(destinationServer, config, wAccessor, r)
+    handleProxyRequest(destinationServer, wAccessor, r)
   }
 
   httpLogger.LogResponse(wAccessor)
