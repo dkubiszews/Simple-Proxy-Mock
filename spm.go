@@ -36,7 +36,7 @@ type MockResponse struct {
   Body string
 }
 
-type RuntimeConfiguration struct {
+type Mock struct {
   mockMap map[string]MockResponse
 }
 
@@ -49,7 +49,7 @@ func handleMock(mockResponse MockResponse, w http.ResponseWriter, r *http.Reques
   w.Write([]byte(mockResponse.Body))
 }
 
-func handleSetMock(config *RuntimeConfiguration, w http.ResponseWriter, r *http.Request) {
+func handleSetMock(config *Mock, w http.ResponseWriter, r *http.Request) {
   log.Print("Handle set mock")
   jsonDecoder := json.NewDecoder(r.Body)
   var mockResponse MockResponse
@@ -62,7 +62,7 @@ func handleSetMock(config *RuntimeConfiguration, w http.ResponseWriter, r *http.
   w.WriteHeader(http.StatusOK)
 }
 
-func handleClearMock(config *RuntimeConfiguration, w http.ResponseWriter, r *http.Request) {
+func handleClearMock(config *Mock, w http.ResponseWriter, r *http.Request) {
   log.Print("Handle clear mock")
   jsonDecoder := json.NewDecoder(r.Body)
   type ClearMockSchema struct {
@@ -78,7 +78,7 @@ func handleClearMock(config *RuntimeConfiguration, w http.ResponseWriter, r *htt
   w.WriteHeader(http.StatusOK)
 }
 
-func handleClearAllMock(config *RuntimeConfiguration, w http.ResponseWriter, r *http.Request) {
+func handleClearAllMock(config *Mock, w http.ResponseWriter, r *http.Request) {
   log.Print("Handle clearAll mock")
   // TODO: add some body to this request 
   config.mockMap = make(map[string]MockResponse)
@@ -117,7 +117,7 @@ func handleProxyRequest(destinationServer string, w http.ResponseWriter, r *http
   proxyResponse.Body.Close()
 }
 
-func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, w http.ResponseWriter, r *http.Request) {
+func proxyHandlerIntern(destinationServer string, config *Mock, w http.ResponseWriter, r *http.Request) {
   log.Print("Handle request")
   httpLogger.LogRequest(r)
 
@@ -139,7 +139,7 @@ func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, 
 
 func provideProxyHandler(destinationServer string) func(http.ResponseWriter, *http.Request) {
   // TODO: add sync for config for mutiple threads
-  config := RuntimeConfiguration{}
+  config := Mock{}
   config.mockMap = make(map[string]MockResponse)
   return func(w http.ResponseWriter, r *http.Request) {
     proxyHandlerIntern(destinationServer, &config, w, r)
