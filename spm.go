@@ -18,16 +18,15 @@
 package main
 
 import (
-  "compress/gzip"
   "io"
   "io/ioutil"
   "encoding/json"
-  "fmt"
   "net/http"
   "log"
   "os"
   "strings"
   "./internal/httpDecorator"
+  "./internal/httpLogger"
 )
 
 type MockResponse struct {
@@ -118,57 +117,9 @@ func handleProxyRequest(destinationServer string, config *RuntimeConfiguration, 
   proxyResponse.Body.Close()
 }
 
-func logRequest(r *http.Request) {
-  var sb strings.Builder
-  sb.WriteString("\n>>>> REQUEST: " + r.RequestURI + "\n\nHEADER:\n")
-  for keyHeader, valueHeader := range r.Header {
-    sb.WriteString(keyHeader + ": "  + valueHeader[0] + "\n")
-  }
-
-  rBody, _ := ioutil.ReadAll(r.Body)
-  sb.WriteString("\nBODY:\n")
-  if r.Header.Get("Content-Encoding") == "gzip" {
-    // TODO: should react on errors here?
-    rNewReader := strings.NewReader(string(rBody[:]))
-    gzipReader, _ := gzip.NewReader(rNewReader)
-    rUncompressedBody, _ := ioutil.ReadAll(gzipReader)
-    sb.WriteString("(uncompressed body)\n" + string(rUncompressedBody[:]))
-  } else {
-    sb.WriteString(string(rBody[:]))
-  }
-  sb.WriteString("\n")
-  r.Body = ioutil.NopCloser(strings.NewReader(string(rBody[:])))
-
-  log.Print(sb.String())
-}
-
-// TODO: consider make common with logRequest
-func logResponse(r *httpDecorator.ResponseWriterAccessor) {
-  var sb strings.Builder
-  sb.WriteString("\n<<<< RESPONSE: " + r.RequestURI + "\n\nHEADER:\n")
-  for keyHeader, valueHeader := range r.Header() {
-    sb.WriteString(keyHeader + ": "  + valueHeader[0] + "\n")
-  }
-
-  sb.WriteString("\nBODY:\n")
-  if r.Header().Get("Content-Encoding") == "gzip" {
-    // TODO: should react on errors here?
-    rNewReader := strings.NewReader(r.Body)
-    gzipReader, _ := gzip.NewReader(rNewReader)
-    rUncompressedBody, _ := ioutil.ReadAll(gzipReader)
-    sb.WriteString("(uncompressed body)\n" + string(rUncompressedBody[:]))
-  } else {
-    sb.WriteString(r.Body)
-  }
-
-  sb.WriteString(fmt.Sprintf("STATUS_CODE: %d \n", r.StatusCode))
-  sb.WriteString("\n")
-  log.Print(sb.String())
-}
-
 func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, w http.ResponseWriter, r *http.Request) {
   log.Print("Handle request")
-  logRequest(r)
+  httpLogger.LogRequest(r)
 
   wAccessor := httpDecorator.NewResponseWriterAccessor(r.RequestURI, w)
   if value, status := config.mockMap[r.RequestURI]; status {
@@ -183,7 +134,7 @@ func proxyHandlerIntern(destinationServer string, config *RuntimeConfiguration, 
     handleProxyRequest(destinationServer, config, wAccessor, r)
   }
 
-  logResponse(wAccessor)
+  httpLogger.LogResponse(wAccessor)
 }
 
 func provideProxyHandler(destinationServer string) func(http.ResponseWriter, *http.Request) {
