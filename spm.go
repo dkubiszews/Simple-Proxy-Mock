@@ -40,6 +40,21 @@ type Mock struct {
   mockMap map[string]MockResponse
 }
 
+func (this *Mock) handleMockRequest(uriPath string, responseWriter http.ResponseWriter, request *http.Request) bool {
+  if value, status := this.mockMap[uriPath]; status {
+    handleMock(value, responseWriter, request)
+  } else if uriPath == "/mockSettings/set" {
+    handleSetMock(this, responseWriter, request)
+  } else if uriPath == "/mockSettings/clear" {
+    handleClearMock(this, responseWriter, request)
+  } else if uriPath == "/mockSettings/clearAll"{
+    handleClearAllMock(this, responseWriter, request)
+  } else {
+    return false;
+  }
+  return true;
+}
+
 func handleMock(mockResponse MockResponse, w http.ResponseWriter, r *http.Request) {
   log.Print("Handle mocked request")
   for keyHeader, valueHeader := range mockResponse.Header {
@@ -122,15 +137,7 @@ func proxyHandlerIntern(destinationServer string, config *Mock, w http.ResponseW
   httpLogger.LogRequest(r)
 
   wAccessor := httpDecorator.NewResponseWriterAccessor(r.RequestURI, w)
-  if value, status := config.mockMap[r.RequestURI]; status {
-    handleMock(value, wAccessor, r)
-  } else if r.RequestURI == "/mockSettings/set" {
-    handleSetMock(config, wAccessor, r)
-  } else if r.RequestURI == "/mockSettings/clear" {
-    handleClearMock(config, wAccessor, r)
-  } else if r.RequestURI == "/mockSettings/clearAll"{
-    handleClearAllMock(config, wAccessor, r)
-  } else {
+  if ! config.handleMockRequest(r.RequestURI, wAccessor, r) {
     handleProxyRequest(destinationServer, wAccessor, r)
   }
 
