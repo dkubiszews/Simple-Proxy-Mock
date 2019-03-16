@@ -21,17 +21,24 @@ import (
 	"encoding/json"
 	"net/http"
   "log"
+  "sync"
 )
 
 // Struct representing mocked endpoints.
 type Mock struct {
   mockMap map[string]mockResponse
+  rwMockMapMutex sync.RWMutex
 }
 
 // Handles mock operations.
 func (this *Mock) HandleMockRequest(uriPath string, responseWriter http.ResponseWriter, request *http.Request) bool {
-  if value, status := this.mockMap[uriPath]; status {
+  this.rwMockMapMutex.RLock()
+  value, status := this.mockMap[uriPath]
+  this.rwMockMapMutex.RUnlock()
+  if status {
+    this.rwMockMapMutex.Lock()
     value.handleMock(responseWriter, request)
+    this.rwMockMapMutex.Unlock()
   } else if uriPath == "/mockSettings/set" {
     this.handleSetMock(responseWriter, request)
   } else if uriPath == "/mockSettings/clear" {
@@ -46,8 +53,12 @@ func (this *Mock) HandleMockRequest(uriPath string, responseWriter http.Response
 
 // Creates new mock.
 func NewMock() (*Mock) {
-	mockResult := new(Mock)
-	mockResult.mockMap = make(map[string]mockResponse)
+  mockResult := new(Mock)
+
+  mockResult.rwMockMapMutex.Lock()
+  mockResult.mockMap = make(map[string]mockResponse)
+  mockResult.rwMockMapMutex.Unlock()
+
 	return mockResult
 }
 
@@ -60,7 +71,11 @@ func (this *Mock) handleSetMock(w http.ResponseWriter, r *http.Request) {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
   }
+
+  this.rwMockMapMutex.Lock()
   this.mockMap[mockResponse.Endpoint] = mockResponse
+  this.rwMockMapMutex.Unlock()
+
   w.WriteHeader(http.StatusOK)
 }
 
@@ -76,14 +91,22 @@ func (this *Mock) handleClearMock(w http.ResponseWriter, r *http.Request) {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
   }
+
+  this.rwMockMapMutex.Lock()
   delete(this.mockMap, clearMockData.Endpoint)
+  this.rwMockMapMutex.Unlock()
+
   w.WriteHeader(http.StatusOK)
 }
 
 func (this *Mock) handleClearAllMock(w http.ResponseWriter, r *http.Request) {
   log.Print("Handle clearAll mock")
   // TODO: add some body to this request 
+
+  this.rwMockMapMutex.Lock()
   this.mockMap = make(map[string]mockResponse)
+  this.rwMockMapMutex.Unlock()
+
   w.WriteHeader(http.StatusOK)
 }
 

@@ -73,7 +73,6 @@ func proxyHandlerIntern(destinationServer string, config *mock.Mock, w http.Resp
 }
 
 func provideProxyHandler(destinationServer string) func(http.ResponseWriter, *http.Request) {
-  // TODO: add sync for config for mutiple threads
   config := mock.NewMock()
   return func(w http.ResponseWriter, r *http.Request) {
     proxyHandlerIntern(destinationServer, config, w, r)
