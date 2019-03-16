@@ -23,32 +23,35 @@ import (
   "log"
 )
 
+// Struct representing mocked endpoints.
 type Mock struct {
   mockMap map[string]mockResponse
 }
 
+// Handles mock operations.
 func (this *Mock) HandleMockRequest(uriPath string, responseWriter http.ResponseWriter, request *http.Request) bool {
   if value, status := this.mockMap[uriPath]; status {
     value.handleMock(responseWriter, request)
   } else if uriPath == "/mockSettings/set" {
-    handleSetMock(this, responseWriter, request)
+    this.handleSetMock(responseWriter, request)
   } else if uriPath == "/mockSettings/clear" {
-    handleClearMock(this, responseWriter, request)
+    this.handleClearMock(responseWriter, request)
   } else if uriPath == "/mockSettings/clearAll"{
-    handleClearAllMock(this, responseWriter, request)
+    this.handleClearAllMock(responseWriter, request)
   } else {
     return false;
   }
   return true;
 }
 
+// Creates new mock.
 func NewMock() (*Mock) {
 	mockResult := new(Mock)
 	mockResult.mockMap = make(map[string]mockResponse)
 	return mockResult
 }
 
-func handleSetMock(config *Mock, w http.ResponseWriter, r *http.Request) {
+func (this *Mock) handleSetMock(w http.ResponseWriter, r *http.Request) {
   log.Print("Handle set mock")
   jsonDecoder := json.NewDecoder(r.Body)
   var mockResponse mockResponse
@@ -57,11 +60,11 @@ func handleSetMock(config *Mock, w http.ResponseWriter, r *http.Request) {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
   }
-  config.mockMap[mockResponse.Endpoint] = mockResponse
+  this.mockMap[mockResponse.Endpoint] = mockResponse
   w.WriteHeader(http.StatusOK)
 }
 
-func handleClearMock(config *Mock, w http.ResponseWriter, r *http.Request) {
+func (this *Mock) handleClearMock(w http.ResponseWriter, r *http.Request) {
   log.Print("Handle clear mock")
   jsonDecoder := json.NewDecoder(r.Body)
   type ClearMockSchema struct {
@@ -73,15 +76,14 @@ func handleClearMock(config *Mock, w http.ResponseWriter, r *http.Request) {
     http.Error(w, err.Error(), http.StatusInternalServerError)
     return
   }
-  delete(config.mockMap, clearMockData.Endpoint)
+  delete(this.mockMap, clearMockData.Endpoint)
   w.WriteHeader(http.StatusOK)
 }
 
-func handleClearAllMock(config *Mock, w http.ResponseWriter, r *http.Request) {
+func (this *Mock) handleClearAllMock(w http.ResponseWriter, r *http.Request) {
   log.Print("Handle clearAll mock")
   // TODO: add some body to this request 
-  config.mockMap = make(map[string]mockResponse)
-  log.Print(config)
+  this.mockMap = make(map[string]mockResponse)
   w.WriteHeader(http.StatusOK)
 }
 
