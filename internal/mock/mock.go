@@ -18,9 +18,9 @@
 package mock
 
 import (
-	"encoding/json"
-	"net/http"
+  "encoding/json"
   "log"
+  "net/http"
   "sync"
 )
 
@@ -35,6 +35,9 @@ func (this *Mock) HandleMockRequest(uriPath string, responseWriter http.Response
   this.rwMockMapMutex.RLock()
   value, status := this.mockMap[uriPath]
   this.rwMockMapMutex.RUnlock()
+
+  // TODO: use router?
+  // TODO: make mockSettings common.
   if status {
     this.rwMockMapMutex.Lock()
     value.handleMock(responseWriter, request)
@@ -43,23 +46,30 @@ func (this *Mock) HandleMockRequest(uriPath string, responseWriter http.Response
     this.handleSetMock(responseWriter, request)
   } else if uriPath == "/mockSettings/clear" {
     this.handleClearMock(responseWriter, request)
-  } else if uriPath == "/mockSettings/clearAll"{
+  } else if uriPath == "/mockSettings/clearAll" {
     this.handleClearAllMock(responseWriter, request)
+  } else if uriPath == "/mockSettings/ping" {
+
   } else {
-    return false;
+    return false
   }
-  return true;
+  return true
 }
 
 // Creates new mock.
-func NewMock() (*Mock) {
+func NewMock() *Mock {
   mockResult := new(Mock)
 
   mockResult.rwMockMapMutex.Lock()
   mockResult.mockMap = make(map[string]mockResponse)
   mockResult.rwMockMapMutex.Unlock()
 
-	return mockResult
+  return mockResult
+}
+
+func (this *Mock) handlePing(w http.ResponseWriter, r *http.Request) {
+  w.Write([]byte("pong"))
+  w.WriteHeader(http.StatusOK)
 }
 
 func (this *Mock) handleSetMock(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +111,7 @@ func (this *Mock) handleClearMock(w http.ResponseWriter, r *http.Request) {
 
 func (this *Mock) handleClearAllMock(w http.ResponseWriter, r *http.Request) {
   log.Print("Handle clearAll mock")
-  // TODO: add some body to this request 
+  // TODO: add some body to this request
 
   this.rwMockMapMutex.Lock()
   this.mockMap = make(map[string]mockResponse)
